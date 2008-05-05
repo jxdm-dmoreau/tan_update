@@ -1,0 +1,11 @@
+Arme (2 mains)
+Arme (1 main)
+Armure
+Casque
+Bouclier
+Bottes
+Talisman
+Composant
+Parchemin
+Champignon
+Potion
