@@ -4,11 +4,14 @@
 use strict;
 use MIME::Lite::HTML;
 
-
-
+my $PREFIX="/home/dmoreau/Documents/tan_update/";
+my $EQUIPEMENT=$PREFIX."conf/equipement.txt";
+my $TANIERE="/tmp/taniere.txt";
+my $TANIERE_LOG="/tmp/taniere.log";
+my $DATA_GP=$PREFIX."data";
 
 # recupération des catégories
-open (EQUIP,'conf/equipement.txt');
+open (EQUIP,$EQUIPEMENT);
 my @equip = ();
 while(<EQUIP>) {
 	chop($_);
@@ -23,19 +26,19 @@ close(EQUIP);
 
 
 
-system('wget http://www.kamikase.info/CCR/script/taniere_update.php');
-system('wget http://www.kamikase.info/CCR/script/taniere_update.log');
-system('wget http://www.kamikase.info/CCR/script/taniere.txt');
+#system('wget http://www.kamikase.info/CCR/script/taniere_update.php -O /tmp/');
+system("wget http://www.kamikase.info/CCR/script/taniere_update.log -O $TANIERE_LOG");
+system("wget http://www.kamikase.info/CCR/script/taniere.txt -O $TANIERE");
 
 
 foreach(@equip) {
-	$_->{nombre} =`grep "$_->{nom}" taniere.txt | wc --lines`;
+	$_->{nombre} =`grep "$_->{nom}" $TANIERE | wc --lines`;
 	chop($_->{nombre});
 }
 
 
 # ecriture du fichier de donnée pour gnuplot
-open(FILE,'>>number.gp');
+open(FILE,">>$DATA_GP");
 foreach(@equip) {
 	print FILE "$_->{nombre}\t";
 }
@@ -49,22 +52,20 @@ foreach(@equip) {
 	$i++;
 	my $name = $_->{nom};
 	$name =~ s/\s/_/g;
-	open(SIMU,'>.simu');
+	open(SIMU,'>/tmp/.simu');
 	print SIMU "set style data lp\n";
 	print SIMU "set xlabel 'Update'\n";
 	print SIMU "set ylabel 'Nombre'\n";
 	print SIMU "set ter png\n";
-	print SIMU "set out '$name.png'\n";
-	print SIMU "plot 'number.gp' using $i title '$_->{nom}'\n"; 
+	print SIMU "set out '/tmp/$name.png'\n";
+	print SIMU "plot '$DATA_GP' using $i title '$_->{nom}'\n"; 
 	close(SIMU);
-	system('gnuplot .simu');
+	system('gnuplot /tmp/.simu');
 }
-
-
 # latex
 #
 my $date=`date`;
-open(LATEX,'>report.tex');
+open(LATEX,'>/tmp/report.tex');
 
 print LATEX "\\documentclass[12pt,a4paper]{article}\n";
 print LATEX "\\usepackage[french]{babel}\n";
@@ -96,7 +97,7 @@ print LATEX "\\end{itemize}\n";
 
 print LATEX "\\section{Log}\n";
 print LATEX "\\begin{lstlisting}[frame=single, breaklines=true, numbers=left]\n";
-open(LOG,"taniere_update.log");
+open(LOG,"$TANIERE_LOG");
 while(<LOG>) {
 	print LATEX "$_\n";
 }
@@ -110,7 +111,7 @@ foreach(@equip) {
 	print LATEX "\\subsection{$_->{nom}}";
 	print LATEX "\\begin{figure}[H]\n";
 	print LATEX "\\centering\n";
-	print LATEX "\\includegraphics[scale=0.5]{$name.png} \n";
+	print LATEX "\\includegraphics[scale=0.5]{/tmp/$name.png} \n";
 	print LATEX "\\end{figure}\n";
 }
 
@@ -119,12 +120,14 @@ print LATEX "\\end{document}\n";
 
 close(LATEX);
 
-system('pdflatex report.tex');
-system('pdflatex report.tex');
+system('pdflatex /tmp/report.tex');
+system('pdflatex /tmp/report.tex');
+
+
 
 my $msg = new MIME::Lite 
 From    =>'cmoidavid@gmail.com', 
-To      =>'cmoidavid@gmail.com, jxing33@gmail.com, jxing@sopragroup.com',          
+To      =>'cmoidavid@gmail.com',          
 Subject =>"Mise à jour de la tanière - $date",
 Type    =>'TEXT',   
 Data    =>"";
@@ -132,14 +135,14 @@ Data    =>"";
 
 attach $msg
 	Type =>'application/pdf',
-	Path =>'report.pdf',
+	Path =>'/home/dmoreau/report.pdf',
 	Filename =>'report.pdf'; 
 
 $msg -> send;
 
 # clean
-system('rm ./taniere_update.php*');
-system('rm ./taniere_update.log*');
-system('rm ./taniere.txt');
-system('rm .simu');
-system('rm *.png');
+system('rm /tmp/taniere_update.php*');
+system("rm $TANIERE_LOG*");
+system("rm $TANIERE");
+system("rm /tmp/.simu");
+system("rm /tmp/*.png");
